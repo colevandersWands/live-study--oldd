@@ -1255,9 +1255,8 @@ function app(state, actions, view, container, log) {
 
 
 window.onload = function() {
-  const root = document.createElement("div");
-  root.id = "root";
-  document.body.appendChild(root)
+  const root = document.getElementById("root");
+  if (root === null) throw new Error("no div with id 'root' in the body");
   window.testing = app(state, actions, view, root, true);
   testing.initialize();
 }
