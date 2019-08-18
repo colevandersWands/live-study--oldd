@@ -1,12 +1,332 @@
-window.onload = function() {
-  const root = document.createElement("div");
-  root.id = "root";
-  document.body.appendChild(root)
-  const testing = app(state, actions, view, root, true);
-  // testing.log.config({state: false, vdom: false})
+
+// refactor with regex
+// things that transform data but don't but don't impact state
+// all pure functions
+
+function function_body(func, format) {
+
+  if (typeof func !== "function") {
+    if (func.toString) {
+      return func.toString();
+    } else {
+      return String(func);
+    }
+  };
+
+  var formats = {
+    raw: function(func) {
+                return raw_body(func);
+              },
+    block: function(func) {
+                var raw = raw_body(func);
+                var trimmed = trim_body(raw);
+                var brackedted = "{\n"+trimmed+"\n}";
+                return brackedted;
+              },
+    inline: function(func) {
+                var raw = raw_body(func);
+                var trimmed = trim_body(raw);
+                var detabbed = detab(trimmed);
+                return detabbed;
+              },
+  };
+
+  formats["brackets"] = formats.block;
+
+  if (formats[format] === undefined) {
+    return formats.inline(func);
+  } else {
+    return formats[format](func);
+  }
+
+  // https://stackoverflow.com/questions/14885995/how-to-get-a-functionss-body-as-string
 }
 
-/* refactor  plann
+function generate_url(snippet, viztool) {
+
+  function standard_encode(__snippet) {
+    var encoded = encodeURIComponent(__snippet);
+    var sanitized = encoded.replace(/\(/g, '%28').replace(/\)/g, '%29');
+    var de_tabbed = sanitized.replace(/%09/g, '%20%20');
+    return de_tabbed;
+  }
+
+  var viztools = {
+    pytut: function(_snippet) {
+                  var encoded = standard_encode(_snippet); 
+                  var url = "http://www.pythontutor.com/live.html#code="+encoded+"&cumulative=false&curInstr=2&heapPrimitives=nevernest&mode=display&origin=opt-live.js&py=js&rawInputLstJSON=%5B%5D&textReferences=false";
+                  return url;
+                },
+    loupe: function(_snippet) {
+                  var encoded = encodeURIComponent(btoa(_snippet));
+                  var url = "http://latentflip.com/loupe/?code="+encoded+"!!!";
+                  return url;
+                },
+    louping: function(_snippet) {
+                  var encoded = standard_encode(_snippet);
+                  var url = "http://janke-learning.github.io/louping/?code="+encoded;
+                  return url;
+                },
+    parsonizer: function(_snippet) {
+                  var encoded = standard_encode(_snippet);
+                  var url = "http://janke-learning.github.io/parsonizer/?snippet="+encoded;
+                  return url;
+                },
+    codealong: function(_snippet) {
+                  var encoded = standard_encode(_snippet);
+                  var url = "http://janke-learning.github.io/code-along/?snippet="+encoded;
+                  return url;
+                },
+    linter: function(_snippet) {
+                  var encoded = standard_encode(_snippet);
+                  var url = "http://janke-learning.github.io/linter/?snippet="+encoded;
+                  return url;
+                },
+    shuffle: function(_snippet) {
+                  var encoded = standard_encode(_snippet);
+                  var url = "http://janke-learning.github.io/spot/?snippet="+encoded;
+                  return url;
+                },
+    spot: function(_snippet) {
+                  var encoded = standard_encode(_snippet);
+                  var url = "http://janke-learning.github.io/shuffle/?snippet="+encoded;
+                  return url;
+                }
+  };
+
+  viztools["python tutor"] = viztools.pytut;
+  viztools["python-tutor"] = viztools.pytut;
+  viztools["pythonTutor"] = viztools.pytut;
+  viztools["PythonTutor"] = viztools.pytut;
+
+  viztools["parsons"] = viztools.parsonizer;
+  viztools["parsons problem"] = viztools.parsonizer;
+  viztools["parsonsProblem"] = viztools.parsonizer;
+  viztools["ParsonsProblem"] = viztools.parsonizer;
+
+  viztools["code-along"] = viztools.codealong;
+  viztools["code along"] = viztools.codealong;
+  viztools["codeAlong"] = viztools.codealong;
+  viztools["codealong"] = viztools.codealong;
+  viztools["codeAlong"] = viztools.codealong;
+
+
+  if (typeof viztools[viztool] === "function") {
+    return viztools[viztool](snippet);
+
+  } else {
+    return viztools.pytut(snippet);
+  }
+
+
+}
+
+function raw_body(func) {
+  var func_str = func.toString();
+  var body_start = func_str.indexOf("{") + 1;
+  var body_end = func_str.lastIndexOf("}");
+  var raw_body = func_str.substring(body_start, body_end);
+  return raw_body;
+}
+
+function detab(raw_body) {
+  var split_body = raw_body.split("\n");
+
+  var first_line = 0;
+  for (var i = 0; i < split_body.length; i++) {
+    var current_line = split_body[i];
+    var first_char = split_body[i][0];
+    if (current_line === "") {
+      continue;
+    } else if (first_char !== " " || first_char !== "\t") {
+      first_line = i;
+      break;
+    }
+  }
+
+  var indenting_chars = [];
+  for (i = 0; i < split_body[first_line].length; i++) {
+    if (split_body[first_line][i] === " " || split_body[first_line][i] === "\t") {
+      indenting_chars.push(split_body[first_line][i]);
+    } else {
+      break;
+    }
+  };
+  var indent = indenting_chars.join("");
+
+  var detabbed_lines = [];
+  for (i = 0; i < split_body.length; i++) {
+    var current_line = split_body[i];
+    var new_first_char = current_line.indexOf(indent) + indent.length;
+    var detabbed_line = current_line.slice(new_first_char, current_line.length);
+    detabbed_lines.push(detabbed_line);
+  };
+
+  var detabbed_body = detabbed_lines.join("\n");
+
+  return detabbed_body;
+}
+
+function trim_body(body) {
+
+  var split_body = body.split("\n");
+
+  var num_to_unshift = 0;
+  to_unshift: for (var i = 0; i < split_body.length; i++) {
+    var current_line = split_body[i];
+    if (current_line.length === 0) {
+      ++num_to_unshift;
+    }
+    for (var j = 0; j < current_line.length; i++) {
+      if (current_line[j] === " " || current_line[i] === "\t") {
+        break to_unshift;
+      }
+      ++num_to_unshift;
+    }
+  }
+
+  var num_to_pop = 0;
+  to_pop: for (var i = split_body.length - 1; i >= num_to_unshift; i--) {
+    var current_line = split_body[i];
+    if (current_line.length === 0) {
+      ++num_to_pop;
+    }
+    for (var j = 0; j < current_line.length; i++) {
+      if (current_line[j] === " " || current_line[i] === "\t") {
+        break to_pop;
+      }
+      ++num_to_pop;
+    }
+  }
+
+  var unshifted = split_body.slice(num_to_unshift, split_body.length - 1);
+  var popped = unshifted.slice(0, split_body.length - 1 - num_to_pop);
+
+  var trimmed_body = popped.join("\n");
+
+  return trimmed_body;
+}
+
+
+const actions = {
+
+  evaluate: id => (state, actions) => { 
+
+    const exercise = state.exercises[id];
+
+    const new_body = "return function exercise_"+exercise.id+"(console){ "+exercise.editorDiv.editor.getValue()+" }";
+    const prevaluate = new Function(new_body);
+    const to_evaluate = prevaluate();
+  
+    const evaluation_console = Object.create(console);
+
+    actions.update_exercise({id: exercise.id, key: "color", value: ""});
+
+    function closing_assert(assertion) {
+
+      if (!assertion) {
+        if (exercise.color !== "orange") {
+          actions.update_exercise({id: exercise.id, key: "color", value: "orange"});
+        }
+        
+        Array.prototype.shift.call(arguments); 
+        this.error('('+exercise.name+')', ...arguments);
+
+      } else {
+        if (exercise.color === "") {
+          actions.update_exercise({id: exercise.id, key: "color", value: "green"});
+        
+        } 
+      }
+    }
+
+    evaluation_console.assert = closing_assert
+
+    to_evaluate(evaluation_console);
+
+    exercise.tries.push(to_evaluate)
+
+    state.exercises[exercise.id] = exercise;
+
+    return { exercises: state.exercises }
+
+  },
+
+  update_exercise: arg => state => {
+
+    state.exercises[arg.id][arg.key] = arg.value;
+
+    return {exercises: state.exercises};
+  },
+
+  copy_snippet: id => state => {
+    var text_area = document.createElement("textarea");
+    var unbracketd = state.exercises[id].editorDiv.editor.getValue();
+    text_area.value = "{\n\n"+unbracketd+"\n\n}";
+    document.body.appendChild(text_area);
+    text_area.focus();
+    text_area.select();
+
+    try {
+      var successful = document.execCommand('copy');
+      if (successful) {
+        alert("copied snippet! past it in the console, or wherever");
+      } else {
+        alert("couldn't copy :( try again?");
+      }
+    } catch (err) {
+      console.error('Oops, unable to copy', err);
+    }
+
+    document.body.removeChild(text_area);
+    window.scrollTo(0, 0);
+  },
+
+  initialize: () => (state, actions) => {
+    const populated = state.exercises.map(ex => actions.populate_exercise(ex));
+    return { exercises: populated }
+  },
+
+  add_exercise: exercise => (state, actions) => {
+    state.exercises.push(actions.populate_exercise(exercise));
+    return {exercises: state.exercises};
+  },
+
+  populate_exercise: exercise => state => {
+
+
+    exercise.tries = [];
+    exercise.color = "";
+    exercise.id = state.exercises.indexOf(exercise);
+
+    const editor_div = document.createElement("div");
+    editor_div.id = state.next_id+"--editor";
+    // editor_div.style = "position:relative;width:90%;height:500px;border: 1px solid black;"
+    const editor = ace.edit(editor_div);
+    editor.setTheme('ace/theme/twilight');
+    editor.getSession().setMode('ace/mode/javascript');
+    editor.setFontSize(12);
+    editor.getSession().setTabSize(2);
+    editor.setAutoScrollEditorIntoView(true);
+
+    const code = function_body(exercise.code);
+    editor.setValue("\n"+code+"\n\n");
+    const code_arr = code.split("\n");
+    editor.setOption("maxLines", code_arr.length+5);
+
+
+    exercise.editorDiv = editor.container;
+    exercise.editorDiv.editor = editor;
+
+    return exercise;
+
+  }
+
+
+}
+
+
+/* refactor views plann
   components for
     to study
     utility functions
@@ -213,6 +533,23 @@ const live_exercises = (exercises, actions) => {
   return h("div", {id:"live exercises"}, ...exercise_divs);
 }
 
+const footer = () => {
+  return h("div", null,
+          h("hr"),
+          h("a", 
+            { href: "https://janke-learning.org",
+              target: "_blank"
+            },
+            h("img", 
+              { src: "https://user-images.githubusercontent.com/18554853/50098409-22575780-021c-11e9-99e1-962787adaded.png",
+                width: "40", height: "40"
+              }
+            ),
+            "Janke Learning"
+          )
+        )
+}
+
 const view = (state, actions) => {
   return h( "div", null,
       // header(),
@@ -223,124 +560,9 @@ const view = (state, actions) => {
       h("h3", null, "exercises"),
       table_of_contents(state.exercises),
       live_exercises(state.exercises, actions),
-      // footer()
+      footer()
     )
 }
-
-const actions = {
-
-  evaluate: id => (state, actions) => { 
-
-    const exercise = state.exercises[id];
-
-    const new_body = "return function exercise_"+exercise.id+"(console){ "+exercise.editorDiv.editor.getValue()+" }";
-    const prevaluate = new Function(new_body);
-    const to_evaluate = prevaluate();
-  
-    const evaluation_console = Object.create(console);
-
-    actions.update_exercise({id: exercise.id, key: "color", value: ""});
-
-    function closing_assert(assertion) {
-
-      if (!assertion) {
-
-        if (exercise.color !== "orange") {
-          actions.update_exercise({id: exercise.id, key: "color", value: "orange"});
-        }
-        
-        Array.prototype.shift.call(arguments); 
-        this.error('('+exercise.name+')', ...arguments);
-
-      } else {
-
-        if (exercise.color === "") {
-          actions.update_exercise({id: exercise.id, key: "color", value: "green"});
-        }
-        
-      }
-
-
-    }
-
-    evaluation_console.assert = closing_assert
-
-    to_evaluate(evaluation_console);
-
-    exercise.tries.push(to_evaluate)
-
-    state.exercises[exercise.id] = exercise;
-
-    return { exercises: state.exercises }
-
-  },
-
-  update_exercise: arg => state => {
-
-    state.exercises[arg.id][arg.key] = arg.value;
-
-    return {exercises: state.exercises};
-  },
-
-  copy_snippet: id => state => {
-    var text_area = document.createElement("textarea");
-    var unbracketd = state.exercises[id].editorDiv.editor.getValue();
-    text_area.value = "{\n\n"+unbracketd+"\n\n}";
-    document.body.appendChild(text_area);
-    text_area.focus();
-    text_area.select();
-
-    try {
-      var successful = document.execCommand('copy');
-      if (successful) {
-        alert("copied snippet! past it in the console, or wherever");
-      } else {
-        alert("couldn't copy :( try again?");
-      }
-    } catch (err) {
-      console.error('Oops, unable to copy', err);
-    }
-
-    document.body.removeChild(text_area);
-    window.scrollTo(0, 0);
-  },
-
-  add_exercise: exercise => state => {
-
-
-    exercise.tries = [];
-    exercise.color = "";
-    exercise.id = state.next_id;
-
-    const editor_div = document.createElement("div");
-    editor_div.id = state.next_id+"--editor";
-    // editor_div.style = "position:relative;width:90%;height:500px;border: 1px solid black;"
-    const editor = ace.edit(editor_div);
-    editor.setTheme('ace/theme/twilight');
-    editor.getSession().setMode('ace/mode/javascript');
-    editor.setFontSize(12);
-    editor.getSession().setTabSize(2);
-    editor.setAutoScrollEditorIntoView(true);
-
-    const code = function_body(exercise.code);
-    editor.setValue("\n"+code+"\n\n");
-    const code_arr = code.split("\n");
-    editor.setOption("maxLines", code_arr.length+5);
-
-
-    exercise.editorDiv = editor.container;
-    exercise.editorDiv.editor = editor;
-
-
-    state.exercises[state.next_id] = exercise;
-
-    return {next_id: ++state.next_id, exercises: state.exercises};
-
-  }
-
-
-}
-
 
 // revisit logging nested actions and state
 
@@ -1030,3 +1252,13 @@ function app(state, actions, view, container, log) {
     it will stop doing anything once it reaches a dom node stored in the vdom
 */
 
+
+
+window.onload = function() {
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.appendChild(root)
+  window.testing = app(state, actions, view, root, true);
+  testing.initialize();
+}
+// testing.log.config({state: false, vdom: false})
