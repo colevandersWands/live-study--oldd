@@ -214,7 +214,7 @@ const actions = {
 
     const exercise = state.exercises[id];
 
-    const new_body = "return function exercise_"+exercise.id+"(console){ "+exercise.editorDiv.editor.getValue()+" }";
+    const new_body = "return function exercise_"+exercise.id+"(console){ "+document.getElementById(exercise.name+"--editor").editor.getValue()+" }";
     const prevaluate = new Function(new_body);
     const to_evaluate = prevaluate();
   
@@ -282,45 +282,11 @@ const actions = {
     window.scrollTo(0, 0);
   },
 
-  initialize: () => (state, actions) => {
-    const populated = state.exercises.map(ex => actions.populate_exercise(ex));
-    return { exercises: populated }
-  },
-
   add_exercise: exercise => (state, actions) => {
-    state.exercises.push(actions.populate_exercise(exercise));
+    state.exercises.push(exercise);
     return {exercises: state.exercises};
   },
 
-  populate_exercise: exercise => state => {
-
-
-    exercise.tries = [];
-    exercise.color = "";
-    exercise.id = state.exercises.indexOf(exercise);
-
-    const editor_div = document.createElement("div");
-    editor_div.id = state.next_id+"--editor";
-    // editor_div.style = "position:relative;width:90%;height:500px;border: 1px solid black;"
-    const editor = ace.edit(editor_div);
-    editor.setTheme('ace/theme/twilight');
-    editor.getSession().setMode('ace/mode/javascript');
-    editor.setFontSize(12);
-    editor.getSession().setTabSize(2);
-    editor.setAutoScrollEditorIntoView(true);
-
-    const code = function_body(exercise.code);
-    editor.setValue("\n"+code+"\n\n");
-    const code_arr = code.split("\n");
-    editor.setOption("maxLines", code_arr.length+5);
-
-
-    exercise.editorDiv = editor.container;
-    exercise.editorDiv.editor = editor;
-
-    return exercise;
-
-  }
 
 
 }
@@ -433,7 +399,7 @@ const study_links = (exercise) => {
   for (const tool of exercise.viztools) {
     const next_button = h("button",
         { onclick: function() {
-            const snippet = exercise.editorDiv.editor.getValue();
+            const snippet = document.getElementById(exer.name+"--editor").editor.getValue();
             const url = generate_url(snippet, tool);
             window.open(url, '_blank');
           }
@@ -493,15 +459,47 @@ const divider = () => {
     )
 }
 
+const ace_div = (exercise) => {
+
+      exercise.tries = [];
+      exercise.color = "";
+      exercise.id = state.exercises.indexOf(exercise);
+
+      const editor_div = document.createElement("div");
+      editor_div.id = exercise.name+"--editor";
+      const editor = ace.edit(editor_div);
+      editor.setTheme('ace/theme/twilight');
+      editor.getSession().setMode('ace/mode/javascript');
+      editor.setFontSize(12);
+      editor.getSession().setTabSize(2);
+      editor.setAutoScrollEditorIntoView(true);
+
+      const code = function_body(exercise.code);
+      editor.setValue("\n"+code+"\n\n");
+      const code_arr = code.split("\n");
+      editor.setOption("maxLines", code_arr.length+5);
+
+      editor_div.editor = editor;
+
+      return editor_div;
+}
+
 const live_exercises = (exercises, actions) => {
   const exercise_divs = [h("hr",null,null)];
   for (const index in exercises) {
+
     const exer = exercises[index];
+
     const html = exer.HTML ? html_div(exer) : null ;
     const resources = exer.resources ? links_list(exer.resources) : null ;
     const study_it = exer.viztools.length !== 0 ? study_links(exer) : null ;
     const dom = exer.dom ? dom_div(exer) : null ;
     const reload = reload_button(exer);
+    const editor_is = document.getElementById(exer.name+"--editor");
+    const editor = editor_is
+                    ? editor_is
+                    : ace_div(exer);
+
 
     const new_div = h(
       "div",
@@ -509,8 +507,8 @@ const live_exercises = (exercises, actions) => {
         style: "background-color:"+exer.color, 
         id: exer.id+"--"+exer.name,
         oncreate: function() {
-          exer.editorDiv.editor.resize();
-          exer.editorDiv.editor.renderer.updateFull();
+          document.getElementById(exer.name+"--editor").editor.resize();
+          document.getElementById(exer.name+"--editor").editor.renderer.updateFull();
           actions.evaluate(exer.id)
         }
       },
@@ -525,7 +523,7 @@ const live_exercises = (exercises, actions) => {
         evaluate_button(exer, actions),
         in_console_button(exer, actions)
       ),
-      exer.editorDiv,
+      editor,
 
     );
     exercise_divs.push( new_div, divider() );
@@ -1258,6 +1256,6 @@ window.onload = function() {
   const root = document.getElementById("root");
   if (root === null) throw new Error("no div with id 'root' in the body");
   window.testing = app(state, actions, view, root, true);
-  testing.initialize();
+  // testing.initialize();
 }
 // testing.log.config({state: false, vdom: false})
