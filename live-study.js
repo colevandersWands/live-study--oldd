@@ -1,3 +1,11 @@
+window.onload = function() {
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.appendChild(root)
+  const testing = app(state, actions, view, root, true);
+  // testing.log.config({state: false, vdom: false})
+}
+
 /* refactor  plann
   components for
     to study
@@ -1021,3 +1029,4 @@ function app(state, actions, view, container, log) {
     see early return in "createElement" function
     it will stop doing anything once it reaches a dom node stored in the vdom
 */
+
